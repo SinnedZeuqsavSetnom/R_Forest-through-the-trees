@@ -1,7 +1,13 @@
 # - - - - - - - - - - Load packages from R library (Install if required) - - - - - - - - - - - - - - - - - - - - - - - - - - #
-library("party")
-library("haven"); library("readxl")
-library("shinyjs"); library("shinythemes")
+library(party)
+library(readr)
+library(readxl)
+library(dplyr)
+library(magrittr)
+library(lubridate)
+library(shiny)
+library(shinyjs)
+library(shinythemes)
 
 
 # - - - App User Interface and Server code - - -
@@ -48,12 +54,24 @@ ui <- fluidPage(
 
 server<-function(input, output, session) {
   options(shiny.maxRequestSize = 100*1024^2)
-  #This function is repsonsible for loading in the selected file
+
   filedata <- reactive({
     infile <- input$FolderPathLoadData
-    if (is.null(infile)) {return(NULL)}
-    read_sav(infile$datapath)
-    })
+    
+    if (is.null(infile)) {
+      data <- NULL
+    } else if (grepl("\\.csv$", infile$datapath, ignore.case = TRUE)) {
+      data <- read_csv(infile$datapath)
+    } else if (grepl("\\.xlsx?$", infile$datapath, ignore.case = TRUE)) {
+      data <- read_excel(infile$datapath)
+    } else {
+      stop("Unsupported file type. Please provide a .csv or .xls/.xlsx file.")
+    }
+    
+    return(data)
+  })
+  
+  
   #This function is repsonsible for Predictor variable split db
   filedata_split <- reactive({
     df<-filedata()
@@ -121,7 +139,12 @@ server<-function(input, output, session) {
   PrintMsg<-eventReactive(input$RunTree_Button, {colnames(filedata_split())})
   output$Msg_Tree <- renderPrint(PrintMsg())
     #output$Msg_Tree <- renderPrint(print(Run_Tree()))
-  output$ctree<-renderPlot({ plot(Run_Tree(), type=PlotType$PlotT, main=input$X)  })
+  output$ctree <- 
+    renderPlot({ 
+      plot(Run_Tree(), 
+           type=PlotType$PlotT, 
+           main=input$X)
+    })
 
     
   #Exit Session and Browser
